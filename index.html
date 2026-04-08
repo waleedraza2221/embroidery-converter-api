@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Embroidery Converter</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #0f0f11;
+      color: #e2e2e2;
+      min-height: 100vh;
+      padding: 2rem 1rem;
+    }
+
+    .container { max-width: 800px; margin: 0 auto; }
+
+    h1 {
+      font-size: 1.8rem;
+      font-weight: 700;
+      margin-bottom: .25rem;
+      background: linear-gradient(90deg, #a78bfa, #60a5fa);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .subtitle { color: #6b7280; font-size: .9rem; margin-bottom: 2rem; }
+
+    .card {
+      background: #18181b;
+      border: 1px solid #27272a;
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .card-title {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+      color: #a1a1aa;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      font-size: .75rem;
+    }
+
+    .drop-zone {
+      border: 2px dashed #3f3f46;
+      border-radius: 8px;
+      padding: 2.5rem;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color .2s, background .2s;
+      position: relative;
+    }
+
+    .drop-zone:hover, .drop-zone.dragover {
+      border-color: #a78bfa;
+      background: #a78bfa11;
+    }
+
+    .drop-zone input[type="file"] {
+      position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+    }
+
+    .drop-icon { font-size: 2.5rem; margin-bottom: .5rem; }
+    .drop-text { color: #71717a; font-size: .9rem; }
+    .drop-text strong { color: #a78bfa; }
+    .file-name { color: #60a5fa; font-size: .85rem; margin-top: .5rem; font-weight: 500; }
+
+    .row { display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap; }
+
+    label { display: block; font-size: .8rem; color: #71717a; margin-bottom: .4rem; }
+
+    select, input[type="text"] {
+      background: #09090b;
+      border: 1px solid #3f3f46;
+      border-radius: 8px;
+      color: #e2e2e2;
+      padding: .55rem .85rem;
+      font-size: .9rem;
+      outline: none;
+      transition: border-color .2s;
+      width: 100%;
+    }
+
+    select:focus, input:focus { border-color: #a78bfa; }
+
+    .field { flex: 1; min-width: 160px; }
+
+    button {
+      background: linear-gradient(135deg, #7c3aed, #2563eb);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: .6rem 1.4rem;
+      font-size: .9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity .2s, transform .1s;
+      white-space: nowrap;
+    }
+
+    button:hover { opacity: .9; }
+    button:active { transform: scale(.98); }
+    button:disabled { opacity: .4; cursor: not-allowed; }
+
+    .btn-secondary {
+      background: #27272a;
+      color: #a1a1aa;
+    }
+
+    .tabs { display: flex; gap: .5rem; margin-bottom: 1.25rem; }
+
+    .tab {
+      background: transparent;
+      border: 1px solid #27272a;
+      color: #71717a;
+      border-radius: 6px;
+      padding: .4rem 1rem;
+      font-size: .8rem;
+      cursor: pointer;
+      transition: all .2s;
+    }
+
+    .tab.active {
+      background: #a78bfa22;
+      border-color: #a78bfa;
+      color: #a78bfa;
+    }
+
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 1rem;
+      margin-top: .5rem;
+    }
+
+    .info-item {
+      background: #09090b;
+      border: 1px solid #27272a;
+      border-radius: 8px;
+      padding: .85rem 1rem;
+    }
+
+    .info-item .val { font-size: 1.4rem; font-weight: 700; color: #a78bfa; }
+    .info-item .lbl { font-size: .72rem; color: #52525b; margin-top: .15rem; }
+
+    .colors-row { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .75rem; }
+
+    .color-chip {
+      display: flex; align-items: center; gap: .4rem;
+      background: #09090b;
+      border: 1px solid #27272a;
+      border-radius: 20px;
+      padding: .25rem .65rem .25rem .35rem;
+      font-size: .75rem;
+      color: #a1a1aa;
+    }
+
+    .color-dot {
+      width: 14px; height: 14px; border-radius: 50%;
+      border: 1px solid #3f3f46;
+      flex-shrink: 0;
+    }
+
+    .formats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+      gap: .4rem;
+      max-height: 320px;
+      overflow-y: auto;
+    }
+
+    .fmt-chip {
+      background: #09090b;
+      border: 1px solid #27272a;
+      border-radius: 6px;
+      padding: .35rem .6rem;
+      font-size: .75rem;
+      text-align: center;
+    }
+
+    .fmt-chip .ext { font-weight: 700; color: #e2e2e2; }
+    .fmt-chip .badges { display: flex; gap: .2rem; justify-content: center; margin-top: .2rem; }
+    .badge {
+      border-radius: 3px;
+      padding: 0 .3rem;
+      font-size: .6rem;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    .badge-r { background: #14532d; color: #4ade80; }
+    .badge-w { background: #1e3a5f; color: #60a5fa; }
+
+    .alert {
+      border-radius: 8px;
+      padding: .75rem 1rem;
+      font-size: .85rem;
+      margin-top: 1rem;
+    }
+    .alert-err { background: #450a0a; border: 1px solid #7f1d1d; color: #fca5a5; }
+    .alert-ok  { background: #052e16; border: 1px solid #14532d; color: #86efac; }
+
+    .spinner {
+      display: inline-block;
+      width: 14px; height: 14px;
+      border: 2px solid #ffffff44;
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin .6s linear infinite;
+      margin-right: .4rem;
+      vertical-align: middle;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .api-url {
+      font-size: .72rem;
+      color: #52525b;
+      margin-bottom: 1.25rem;
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+    }
+
+    .api-url input {
+      background: #09090b;
+      border: 1px solid #27272a;
+      border-radius: 6px;
+      color: #60a5fa;
+      padding: .3rem .65rem;
+      font-size: .78rem;
+      width: 240px;
+    }
+
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #18181b; }
+    ::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 3px; }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <h1>Embroidery Converter</h1>
+  <p class="subtitle">Convert between 90+ embroidery formats via the local API</p>
+
+  <div class="api-url">
+    API base URL:
+    <input type="text" id="apiBase" value="" placeholder="http://127.0.0.1:8000" />
+  </div>
+
+  <!-- TABS -->
+  <div class="tabs">
+    <button class="tab active" onclick="showTab('convert')">Convert</button>
+    <button class="tab" onclick="showTab('info')">File Info</button>
+    <button class="tab" onclick="showTab('formats')">Formats</button>
+  </div>
+
+  <!-- CONVERT TAB -->
+  <div id="tab-convert">
+    <div class="card">
+      <div class="card-title">Upload &amp; Convert</div>
+
+      <div class="drop-zone" id="convertDrop">
+        <input type="file" id="convertFile" accept="*" onchange="onConvertFile(this)" />
+        <div class="drop-icon">🪡</div>
+        <div class="drop-text">Drop your embroidery file here or <strong>click to browse</strong></div>
+        <div class="file-name" id="convertFileName"></div>
+      </div>
+
+      <div class="row" style="margin-top:1rem">
+        <div class="field">
+          <label for="targetFmt">Target format</label>
+          <select id="targetFmt"><option value="">Loading formats…</option></select>
+        </div>
+        <button id="convertBtn" onclick="doConvert()" disabled>
+          Convert &amp; Download
+        </button>
+      </div>
+
+      <div id="convertMsg"></div>
+    </div>
+  </div>
+
+  <!-- INFO TAB -->
+  <div id="tab-info" style="display:none">
+    <div class="card">
+      <div class="card-title">File Metadata</div>
+
+      <div class="drop-zone" id="infoDrop">
+        <input type="file" id="infoFile" accept="*" onchange="onInfoFile(this)" />
+        <div class="drop-icon">🔍</div>
+        <div class="drop-text">Drop an embroidery file or <strong>click to browse</strong></div>
+        <div class="file-name" id="infoFileName"></div>
+      </div>
+
+      <div style="margin-top:1rem">
+        <button id="infoBtn" onclick="doInfo()" disabled>Get Info</button>
+      </div>
+
+      <div id="infoResult"></div>
+    </div>
+  </div>
+
+  <!-- FORMATS TAB -->
+  <div id="tab-formats" style="display:none">
+    <div class="card">
+      <div class="card-title">Supported Formats</div>
+      <div style="margin-bottom:.75rem; display:flex; gap:.5rem; align-items:center; flex-wrap:wrap">
+        <input type="text" id="fmtSearch" placeholder="Search…" oninput="filterFormats()" style="max-width:200px" />
+        <span class="badge badge-r" style="padding:.2rem .5rem">R = readable</span>
+        <span class="badge badge-w" style="padding:.2rem .5rem">W = writable</span>
+      </div>
+      <button class="btn-secondary" onclick="loadFormats(true)" style="margin-bottom:1rem">Reload</button>
+      <div class="formats-grid" id="formatsGrid"><p style="color:#52525b;font-size:.85rem">Loading…</p></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const apiBase = () => (document.getElementById('apiBase').value || '').replace(/\/$/, '')
+
+  // ─── tabs ────────────────────────────────────────────────
+  function showTab(name) {
+    ['convert','info','formats'].forEach(t => {
+      document.getElementById('tab-' + t).style.display = t === name ? '' : 'none'
+      document.querySelectorAll('.tab')[['convert','info','formats'].indexOf(t)].classList.toggle('active', t === name)
+    })
+    if (name === 'formats') loadFormats()
+  }
+
+  // ─── drag & drop highlight ────────────────────────────────
+  document.querySelectorAll('.drop-zone').forEach(zone => {
+    zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover') })
+    zone.addEventListener('dragleave', () => zone.classList.remove('dragover'))
+    zone.addEventListener('drop', e => { e.preventDefault(); zone.classList.remove('dragover') })
+  })
+
+  // ─── formats ─────────────────────────────────────────────
+  let allFormats = []
+
+  async function loadFormats(force = false) {
+    if (allFormats.length && !force) { renderFormats(allFormats); return }
+    document.getElementById('formatsGrid').innerHTML = '<p style="color:#52525b;font-size:.85rem">Loading…</p>'
+    try {
+      const res = await fetch(apiBase() + '/formats')
+      if (!res.ok) throw new Error(res.statusText)
+      const data = await res.json()
+      allFormats = data.formats
+      renderFormats(allFormats)
+      populateTargetSelect(allFormats)
+    } catch (e) {
+      document.getElementById('formatsGrid').innerHTML = `<p class="alert alert-err">Could not reach API: ${e.message}</p>`
+    }
+  }
+
+  function renderFormats(list) {
+    const q = (document.getElementById('fmtSearch').value || '').toLowerCase()
+    const filtered = q ? list.filter(f => f.extension.includes(q) || (f.description||'').toLowerCase().includes(q)) : list
+    document.getElementById('formatsGrid').innerHTML = filtered.map(f => `
+      <div class="fmt-chip" title="${f.description || ''}">
+        <div class="ext">.${f.extension}</div>
+        <div class="badges">
+          ${f.read  ? '<span class="badge badge-r">R</span>' : ''}
+          ${f.write ? '<span class="badge badge-w">W</span>' : ''}
+        </div>
+      </div>`).join('') || '<p style="color:#52525b;font-size:.85rem">No matches.</p>'
+  }
+
+  function filterFormats() { renderFormats(allFormats) }
+
+  function populateTargetSelect(formats) {
+    const sel = document.getElementById('targetFmt')
+    const writable = formats.filter(f => f.write).sort((a,b) => a.extension.localeCompare(b.extension))
+    sel.innerHTML = writable.map(f => `<option value="${f.extension}">.${f.extension} – ${f.description || ''}</option>`).join('')
+    // default to dst
+    const dst = writable.find(f => f.extension === 'dst')
+    if (dst) sel.value = 'dst'
+    updateConvertBtn()
+  }
+
+  // ─── convert ─────────────────────────────────────────────
+  function onConvertFile(input) {
+    const f = input.files[0]
+    document.getElementById('convertFileName').textContent = f ? f.name : ''
+    updateConvertBtn()
+  }
+
+  function updateConvertBtn() {
+    const hasFile = !!document.getElementById('convertFile').files[0]
+    const hasFmt  = !!document.getElementById('targetFmt').value
+    document.getElementById('convertBtn').disabled = !(hasFile && hasFmt)
+  }
+
+  async function doConvert() {
+    const file = document.getElementById('convertFile').files[0]
+    const fmt  = document.getElementById('targetFmt').value
+    const btn  = document.getElementById('convertBtn')
+    const msg  = document.getElementById('convertMsg')
+
+    btn.disabled = true
+    btn.innerHTML = '<span class="spinner"></span>Converting…'
+    msg.innerHTML = ''
+
+    try {
+      const form = new FormData()
+      form.append('file', file)
+      const res = await fetch(`${apiBase()}/convert?target_format=${fmt}`, { method: 'POST', body: form })
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ detail: res.statusText }))
+        throw new Error(err.detail || res.statusText)
+      }
+
+      const blob = await res.blob()
+      const url  = URL.createObjectURL(blob)
+      const a    = document.createElement('a')
+      const stem = file.name.replace(/\.[^.]+$/, '')
+      a.href = url
+      a.download = `${stem}.${fmt}`
+      a.click()
+      URL.revokeObjectURL(url)
+      msg.innerHTML = `<div class="alert alert-ok">✓ Converted to <strong>.${fmt}</strong> — download started.</div>`
+    } catch (e) {
+      msg.innerHTML = `<div class="alert alert-err">Error: ${e.message}</div>`
+    } finally {
+      btn.disabled = false
+      btn.innerHTML = 'Convert &amp; Download'
+      updateConvertBtn()
+    }
+  }
+
+  // ─── info ─────────────────────────────────────────────────
+  function onInfoFile(input) {
+    const f = input.files[0]
+    document.getElementById('infoFileName').textContent = f ? f.name : ''
+    document.getElementById('infoBtn').disabled = !f
+    document.getElementById('infoResult').innerHTML = ''
+  }
+
+  async function doInfo() {
+    const file = document.getElementById('infoFile').files[0]
+    const btn  = document.getElementById('infoBtn')
+    const out  = document.getElementById('infoResult')
+
+    btn.disabled = true
+    btn.innerHTML = '<span class="spinner"></span>Reading…'
+    out.innerHTML = ''
+
+    try {
+      const form = new FormData()
+      form.append('file', file)
+      const res = await fetch(`${apiBase()}/info`, { method: 'POST', body: form })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ detail: res.statusText }))
+        throw new Error(err.detail || res.statusText)
+      }
+      const d = await res.json()
+
+      out.innerHTML = `
+        <div class="info-grid">
+          <div class="info-item"><div class="val">${d.stitch_count.toLocaleString()}</div><div class="lbl">Stitches</div></div>
+          <div class="info-item"><div class="val">${d.thread_count}</div><div class="lbl">Thread colors</div></div>
+          <div class="info-item"><div class="val">${d.width_mm}</div><div class="lbl">Width (mm)</div></div>
+          <div class="info-item"><div class="val">${d.height_mm}</div><div class="lbl">Height (mm)</div></div>
+        </div>
+        ${d.colors.length ? `
+        <div style="margin-top:1rem">
+          <div class="card-title">Thread Colors</div>
+          <div class="colors-row">
+            ${d.colors.map(c => `
+              <div class="color-chip">
+                <div class="color-dot" style="background:${c.color || '#888'}"></div>
+                ${c.name || c.color || 'Unknown'}
+              </div>`).join('')}
+          </div>
+        </div>` : ''}
+      `
+    } catch (e) {
+      out.innerHTML = `<div class="alert alert-err">Error: ${e.message}</div>`
+    } finally {
+      btn.disabled = false
+      btn.innerHTML = 'Get Info'
+    }
+  }
+
+  // ─── init ─────────────────────────────────────────────────
+  loadFormats()
+</script>
+</body>
+</html>
