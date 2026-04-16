@@ -3,10 +3,15 @@ import os
 import tempfile
 from pathlib import Path
 
+import cv2
+import numpy as np
 import pyembroidery
 from fastapi import FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, StreamingResponse
+from PIL import Image
+
+from image_processor import StitchRules, process_image
 
 app = FastAPI(
     title="Embroidery Format Converter API",
@@ -123,6 +128,44 @@ async def get_info(file: UploadFile = File(...)):
         }
     finally:
         os.unlink(tmp_path)
+
+
+@app.post("/stitch-count", summary="Estimate stitch count from an image")
+async def stitch_count(
+    file: UploadFile = File(...),
+    design_width_mm: float = Query(100.0, gt=0, description="Output design width in mm"),
+    n_colors: int = Query(6, ge=1, le=20, description="Number of thread colors to extract"),
+):
+    """
+    Upload a raster image (PNG, JPG, etc.) and receive an estimated stitch count
+    along with a per-color breakdown.
+
+    - **design_width_mm**: physical width of the finished embroidery in mm
+    - **n_colors**: how many dominant thread colors to detect
+    """
+    contents = await file.read()
+    try:
+        pil_img = Image.open(io.BytesIO(contents)).convert("RGB")
+    except Exception:
+        raise HTTPException(status_code=400, detail="Could not open image. Upload a valid PNG, JPG, or similar file.")
+
+    img_rgb = np.array(pil_img)
+
+    segments, thread_colors, bbox, layers_info = process_image(
+        img_rgb,
+        n_colors=n_colors,
+        design_width_mm=design_width_mm,
+    )
+
+    total_stitches = sum(layer["stitch_count"] for layer in layers_info)
+
+    return {
+        "filename": file.filename,
+        "design_width_mm": design_width_mm,
+        "total_stitch_count": total_stitches,
+        "thread_count": len(thread_colors),
+        "layers": layers_info,
+    }
 
 
 @app.post("/convert", summary="Convert embroidery file to another format")
