@@ -130,6 +130,46 @@ async def get_info(file: UploadFile = File(...)):
         os.unlink(tmp_path)
 
 
+def _calc_complexity(
+    total_stitches: int,
+    thread_count: int,
+    layers_info: list,
+) -> tuple[str, int]:
+    """
+    Score design complexity 0–100 and map to a label.
+
+    Factors
+    -------
+    - Stitch volume  (0–40 pts): scales up to 30 000 stitches
+    - Thread count   (0–30 pts): scales up to 10 colors
+    - Stitch variety (0–30 pts): how many distinct stitch types are used
+        1 type  → 0 pts
+        2 types → 15 pts
+        3 types → 30 pts
+
+    Labels
+    ------
+    0–33  → Simple
+    34–66 → Medium
+    67–100 → Complex
+    """
+    stitch_score  = min(40, int(total_stitches / 30_000 * 40))
+    color_score   = min(30, int(thread_count / 10 * 30))
+    types_used    = len({layer["stitch_type"] for layer in layers_info})
+    variety_score = {1: 0, 2: 15, 3: 30}.get(types_used, 30)
+
+    score = stitch_score + color_score + variety_score
+
+    if score <= 33:
+        label = "Simple"
+    elif score <= 66:
+        label = "Medium"
+    else:
+        label = "Complex"
+
+    return label, score
+
+
 @app.post("/stitch-count", summary="Estimate stitch count from an image")
 async def stitch_count(
     file: UploadFile = File(...),
@@ -158,12 +198,15 @@ async def stitch_count(
     )
 
     total_stitches = sum(layer["stitch_count"] for layer in layers_info)
+    complexity_label, complexity_score = _calc_complexity(total_stitches, len(thread_colors), layers_info)
 
     return {
         "filename": file.filename,
         "design_width_mm": design_width_mm,
         "total_stitch_count": total_stitches,
         "thread_count": len(thread_colors),
+        "complexity": complexity_label,
+        "complexity_score": complexity_score,
         "layers": layers_info,
     }
 
